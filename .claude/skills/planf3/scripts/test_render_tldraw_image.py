@@ -120,6 +120,7 @@ class JpegToPngConversionTests(unittest.TestCase):
 
             self.assertTrue(output_png.exists())
             self.assertEqual(output_png.read_bytes()[:8], b"\x89PNG\r\n\x1a\n")
+            self.assertFalse(jpeg_fixture.exists(), "temp JPEG should be cleaned up")
 
 
 def main():

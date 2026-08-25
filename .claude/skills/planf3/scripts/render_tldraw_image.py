@@ -147,6 +147,7 @@ def jpeg_to_png(src: Path, dst: Path, width: int, height: int) -> None:
         check=True,
         capture_output=True,
     )
+    src.unlink(missing_ok=True)
 
 
 def render_tldraw_image(spec: str, output_path: str, size: str = "1536x1024") -> None:
