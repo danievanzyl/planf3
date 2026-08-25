@@ -23,7 +23,9 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from datetime import datetime
 from pathlib import Path
+from unittest.mock import patch
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 RENDER_SCRIPT = SCRIPT_DIR / "render_tldraw_image.py"
@@ -121,6 +123,58 @@ class JpegToPngConversionTests(unittest.TestCase):
             self.assertTrue(output_png.exists())
             self.assertEqual(output_png.read_bytes()[:8], b"\x89PNG\r\n\x1a\n")
             self.assertFalse(jpeg_fixture.exists(), "temp JPEG should be cleaned up")
+
+
+class BackupIfExistsTests(unittest.TestCase):
+    def _chdir_tmp(self, tmp):
+        cwd = os.getcwd()
+        os.chdir(tmp)
+        self.addCleanup(os.chdir, cwd)
+
+    def test_backs_up_existing_output(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            self._chdir_tmp(tmp)
+            out = Path(tmp) / "out.png"
+            out.write_bytes(base64.b64decode(TINY_PNG_B64))
+
+            rti.backup_if_exists(str(out))
+
+            backup_dir = Path(tmp) / "backup"
+            self.assertEqual((backup_dir / ".gitignore").read_text(), "*\n")
+            backups = list(backup_dir.glob("out_*.png"))
+            self.assertEqual(len(backups), 1)
+            ts = datetime.now().strftime("%Y%m%d-%H%M%S")
+            self.assertEqual(backups[0].name, f"out_{ts}.png")
+            self.assertEqual(out.read_bytes(), backups[0].read_bytes())
+
+    def test_no_backup_when_output_absent(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            self._chdir_tmp(tmp)
+            out = Path(tmp) / "out.png"
+
+            with patch("builtins.print") as mock_print:
+                rti.backup_if_exists(str(out))
+
+            self.assertFalse((Path(tmp) / "backup").exists())
+            mock_print.assert_not_called()
+
+    def test_collision_suffixes_with_counter(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            self._chdir_tmp(tmp)
+            out = Path(tmp) / "out.png"
+            out.write_bytes(base64.b64decode(TINY_PNG_B64))
+
+            ts = datetime.now().strftime("%Y%m%d-%H%M%S")
+            backup_dir = Path(tmp) / "backup"
+            backup_dir.mkdir()
+            (backup_dir / f"out_{ts}.png").write_bytes(b"existing-backup")
+
+            rti.backup_if_exists(str(out))
+
+            collided = backup_dir / f"out_{ts}_1.png"
+            self.assertTrue(collided.exists())
+            self.assertEqual(collided.read_bytes(), out.read_bytes())
+            self.assertEqual((backup_dir / f"out_{ts}.png").read_bytes(), b"existing-backup")
 
 
 def main():

@@ -22,11 +22,13 @@ Requires tldraw Desktop running locally. Port + bearer token are read from
 import argparse
 import json
 import re
+import shutil
 import subprocess
 import sys
 import urllib.error
 import urllib.request
 import uuid
+from datetime import datetime
 from pathlib import Path
 
 EXIT_OK = 0
@@ -134,6 +136,31 @@ return {{ id }}
 """
 
 
+def backup_if_exists(output_path: str) -> None:
+    """Copy an existing output file into ./backup/ before it gets overwritten.
+
+    Re-running a render often targets a path that already holds an image —
+    losing it silently and unrecoverably is the failure mode this guards
+    against. backup/ self-ignores via a backup/.gitignore of "*".
+    """
+    out = Path(output_path)
+    if not out.exists():
+        return
+    backup_dir = Path.cwd() / "backup"
+    backup_dir.mkdir(exist_ok=True)
+    gitignore = backup_dir / ".gitignore"
+    if not gitignore.exists():
+        gitignore.write_text("*\n")
+    ts = datetime.now().strftime("%Y%m%d-%H%M%S")
+    dest = backup_dir / f"{out.stem}_{ts}{out.suffix}"
+    counter = 1
+    while dest.exists():
+        dest = backup_dir / f"{out.stem}_{ts}_{counter}{out.suffix}"
+        counter += 1
+    shutil.copy2(out, dest)
+    print(f"Backed up existing {output_path} -> {dest}")
+
+
 def jpeg_to_png(src: Path, dst: Path, width: int, height: int) -> None:
     """Convert a tldraw screenshot JPEG to PNG at the requested pixel size."""
     dst.parent.mkdir(parents=True, exist_ok=True)
@@ -167,6 +194,7 @@ def render_tldraw_image(spec: str, output_path: str, size: str = "1536x1024") ->
     jpeg_path = Path(shot["filePath"])
 
     out = Path(output_path)
+    backup_if_exists(output_path)
     jpeg_to_png(jpeg_path, out, width, height)
     print(f"Saved: {out}")
 

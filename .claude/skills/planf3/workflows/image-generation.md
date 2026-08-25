@@ -46,6 +46,6 @@ If neither backend is available (no `OPENAI_API_KEY` and tldraw Desktop not runn
 
 1. Identify targets - From the `USER_PROMPT`, determine which embedded `<img>` images to change.
 2. Write instruction - Write an edit instruction describing the change, following the shared rules above.
-3. Edit - If gpt-image is available (per the selection order above), run `edit_gpt_image.py` with the existing PNG as input, overwriting it (the script backs up the original first). tldraw has no edit mode — if gpt-image is unavailable, re-run `render_tldraw_image.py` (Create) for that slot's output path instead, or leave the existing image in place and report it as skipped.
+3. Edit - If gpt-image is available (per the selection order above), run `edit_gpt_image.py` with the existing PNG as input, overwriting it (the script backs up the original first). tldraw has no edit mode — if gpt-image is unavailable, re-run `render_tldraw_image.py` (Create) for that slot's output path instead (it also backs up the original first), or leave the existing image in place and report it as skipped.
 4. Verify embed - Confirm the `<img>` still points at the updated file; update `src`/`alt`/`<figcaption>` if the change warrants it.
 5. Report - List the images updated, the backend used, and what changed (or which updates were skipped and why).
